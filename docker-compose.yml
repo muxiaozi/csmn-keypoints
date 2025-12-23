@@ -11,6 +11,7 @@ services:
     env_file: .env
     volumes:
       - ./logs:/app/logs
+      - ./uploads:/app/uploads
     ports:
       - "3001:3000"
     depends_on:
@@ -25,4 +26,4 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
       TZ: Asia/Shanghai
     volumes:
-      - ./.postgres_data:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
