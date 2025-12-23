@@ -10,7 +10,6 @@ import {
 } from "./middlewares/error_handler.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { processFile, transcribeAudio } from "./utils/ai.js";
 
 dotenv.config();
 
@@ -47,5 +46,5 @@ app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);
 });
 
-export { prisma, opanai };
+export { prisma };
 export default app;

@@ -14,7 +14,6 @@ import {
 } from "../../middlewares/validation.js";
 import { deviceSchemas, commonSchemas, schemas } from "../../utils/schemas.js";
 import multer from "multer";
-import { processFile as AIProcessFile } from "../../utils/ai.js";
 
 const router = Router();
 const upload = multer({ dest: "uploads/" });
