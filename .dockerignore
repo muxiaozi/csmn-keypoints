@@ -1,0 +1,8 @@
+node_modules/
+dist/
+logs/
+.git/
+.postgres_data/
+*.log
+.env
+.DS_Store

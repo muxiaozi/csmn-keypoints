@@ -1,0 +1,227 @@
+import { Router, Request, Response } from "express";
+import { prisma } from "../../app.js";
+import {
+  failed,
+  forbidden,
+  success,
+  unauthorized,
+} from "../../utils/response.js";
+import { asyncHandler } from "../../middlewares/error_handler.js";
+import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "../../middlewares/validation.js";
+import { deviceSchemas, commonSchemas, schemas } from "../../utils/schemas.js";
+import multer from "multer";
+import { processFile as AIProcessFile } from "../../utils/ai.js";
+
+const router = Router();
+const upload = multer({ dest: "uploads/" });
+
+// 获取所有设备
+router.get(
+  "/",
+  validateQuery(schemas.device.queryAllDevice),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.query;
+
+    if (token != "XjCwXGOo2M1Dtk7FfMbmjafnHXVSEElJ") {
+      return forbidden(res);
+    }
+
+    const devices = await prisma.device.findMany({
+      include: {
+        _count: {
+          select: {
+            records: true,
+          },
+        },
+      },
+    });
+    return success(res, devices);
+  })
+);
+
+// 获取设备
+router.get(
+  "/:id",
+  validateParams(commonSchemas.idParam),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const device = await prisma.device.findUnique({
+      where: { id },
+      include: {
+        records: {
+          omit: {
+            path: true,
+          },
+        },
+      },
+    });
+    if (!device) {
+      return failed(res, "Device not found", 404);
+    }
+    return success(res, device);
+  })
+);
+
+// 获取设备的记录
+router.get(
+  "/:device_id/records/:record_index",
+  validateParams(deviceSchemas.deviceRecordParam),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { device_id, record_index } = req.params;
+    const record = await prisma.record.findUnique({
+      where: { device_id_index: { device_id, index: parseInt(record_index) } },
+      include: {
+        keypoints: true,
+      },
+    });
+    if (!record) {
+      return failed(res, "Record not found", 404);
+    }
+    return success(res, record);
+  })
+);
+
+// 创建设备
+router.post(
+  "/",
+  validateBody(deviceSchemas.createDevice),
+  asyncHandler(async (req: Request, res: Response) => {
+    const {
+      id,
+      name,
+      wifi_mac,
+      flash_size,
+      ram_size,
+      chip_id,
+      reset_reason,
+      idf_version,
+      firmware_version,
+      manufacturer,
+      model,
+      description,
+    } = req.body;
+    const existingDevice = await prisma.device.findUnique({
+      where: { id },
+    });
+    if (existingDevice) {
+      const updatedDevice = await prisma.device.update({
+        where: { id },
+        data: {
+          name,
+          wifi_mac,
+          flash_size,
+          ram_size,
+          chip_id,
+          reset_reason,
+          idf_version,
+          firmware_version,
+          manufacturer,
+          model,
+          description,
+        },
+      });
+      return success(res, updatedDevice);
+    }
+    const device = await prisma.device.create({
+      data: {
+        id,
+        name,
+        wifi_mac,
+        flash_size,
+        ram_size,
+        chip_id,
+        reset_reason,
+        idf_version,
+        firmware_version,
+        manufacturer,
+        model,
+        description,
+      },
+    });
+    return success(res, device);
+  })
+);
+
+// 上传记录
+router.post(
+  "/:id/records",
+  validateParams(commonSchemas.idParam),
+  validateBody(deviceSchemas.createRecord),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { index, begin_time, duration_seconds, size_bytes, crc16 } = req.body;
+    const device = await prisma.device.findUnique({
+      where: { id },
+    });
+    if (!device) {
+      return failed(res, "Device not found", 404);
+    }
+
+    const record = await prisma.record.create({
+      data: {
+        index,
+        device_id: id,
+        begin_time: new Date(begin_time),
+        duration_seconds,
+        size_bytes,
+        crc16,
+      },
+    });
+    return success(res, record);
+  })
+);
+
+// 上传记录文件
+router.post(
+  "/:device_id/records/:record_index/audio",
+  validateParams(deviceSchemas.deviceRecordParam),
+  upload.single("audio"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { device_id, record_index } = req.params;
+
+    const record = await prisma.record.update({
+      where: {
+        device_id_index: {
+          device_id: device_id,
+          index: parseInt(record_index),
+        },
+      },
+      data: {
+        url: `${process.env.BASE_URL}/uploads/${req.file!.filename}`,
+        path: `uploads/${req.file!.filename}`,
+        status: "PROCESSING",
+      },
+    });
+
+    if (!record) {
+      return failed(res, "Record not found", 404);
+    }
+
+    // 后台处理文件，不必await
+    // 这里使用SSE技术，可以实时推送处理进度到前端
+    // AIProcessFile(req.file!.path, device_id);
+
+    return success(res, record);
+  })
+);
+
+// 删除设备
+// router.post(
+//   "/delete",
+//   validateBody(commonSchemas.idParam),
+//   asyncHandler(async (req: Request, res: Response) => {
+//     const { id } = req.body;
+//     const device = await prisma.device.delete({
+//       where: {
+//         id,
+//       },
+//     });
+//     return success(res, device);
+//   })
+// );
+
+export default router;

@@ -1,0 +1,62 @@
+datasource db {
+    provider = "postgresql"
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+enum RecordStatus {
+    UPLOADING
+    PROCESSING
+    PROCESS_FAIL
+    DONE
+}
+
+model KeyPoint {
+    id         Int     @id @default(autoincrement())
+    record_id  String
+    record     Record  @relation(fields: [record_id], references: [id])
+    time_point Int // 时间点(相对于整段录音)
+    remark     String? // 备注
+    content    String // 内容
+    speaker    String? // 说话者
+}
+
+model Record {
+    id               String       @id @default(uuid())
+    index            Int // 记录索引
+    device_id        String
+    device           Device       @relation(fields: [device_id], references: [id])
+    begin_time       DateTime
+    duration_seconds Int // 持续时间，单位：秒
+    size_bytes       Int
+    crc16            Int? // CRC16校验值
+    remark           String? // 备注
+    url              String? // 文件访问URL
+    path             String? // 文件存储路径
+    content          String? // 内容可以留空，便于AI更新
+    keypoints        KeyPoint[]
+    speakers         String[] // 讲话的人
+    status           RecordStatus @default(UPLOADING)
+
+    @@unique([device_id, index])
+}
+
+model Device {
+    id               String   @id
+    name             String
+    wifi_mac         String
+    flash_size       Int // 闪存大小
+    ram_size         Int // 内存大小
+    chip_id          String // 芯片ID
+    reset_reason     String // 重置原因
+    idf_version      String // SDK版本
+    firmware_version String // 固件版本
+    manufacturer     String // 制造商
+    model            String // 产品型号
+    description      String?
+    records          Record[]
+    created_at       DateTime @default(now())
+    updated_at       DateTime @updatedAt
+}

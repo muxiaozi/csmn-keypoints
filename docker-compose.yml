@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+         DATABASE_URL: ${DATABASE_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+    env_file: .env
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+    volumes:
+      - ./.postgres_data:/var/lib/postgresql/data
