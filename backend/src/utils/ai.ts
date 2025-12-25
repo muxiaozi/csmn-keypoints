@@ -41,13 +41,18 @@ type TextPolishResponse = Array<{
 export async function aiProcessFile(
   fileUrl: string,
   recordId: string
-): Promise<boolean> {
+): Promise<string> {
+  logger.info(
+    "Starting AI processing for file: %s, recordId: %s",
+    fileUrl,
+    recordId
+  );
   // 创建任务
   const createResponse = await createTask(fileUrl);
   if (createResponse?.code !== undefined) {
-    return false;
+    throw new Error(`Tingwu createTask failed: ${createResponse.message}`);
   }
-  console.log("CreateTaskResponse:", createResponse);
+  logger.info("CreateTaskResponse: %o", createResponse);
   const dataId = createResponse.output.dataId;
   const maxRetries = 30;
   let retries = 0;
@@ -57,38 +62,34 @@ export async function aiProcessFile(
     await new Promise((resolve) => setTimeout(resolve, 3000)); // 等待3秒
     taskResponse = await getTask(dataId);
     if (taskResponse.output.status === 0) {
-      logger.info("Tingwu task %s succeeded: %s", dataId, taskResponse);
+      logger.info("Tingwu task %s succeeded: %o", dataId, taskResponse);
       break;
     } else if (taskResponse.output.status === 2) {
-      logger.error("Tingwu task %s failed: %s", dataId, taskResponse);
-      return false;
+      logger.error("Tingwu task %s failed: %o", dataId, taskResponse);
+      throw new Error(`Tingwu getTask failed: ${taskResponse.output.errorMessage}`);
     }
     logger.info("Tingwu task %s processing...", dataId);
     retries++;
   }
   if (retries === maxRetries) {
     logger.error("Tingwu task %s timed out", dataId);
-    return false;
+    throw new Error("Tingwu getTask timed out");
   }
-  console.log("GetTaskResponse:", taskResponse);
+  logger.info("GetTaskResponse: %o", taskResponse);
   // 解析结果并存储到数据库或文件系统
   if (!taskResponse?.output.textPolishPath) {
     logger.error("Tingwu task %s has no textPolishPath", dataId);
-    return false;
+    throw new Error("Tingwu task has no textPolishPath");
   }
   const resp = await handleTextPolish(taskResponse.output.textPolishPath);
-  console.log("TextPolishResponse:", resp);
+  logger.info("TextPolishResponse: %o", resp);
 
-  await prisma.record.update({
-    where: {
-      id: recordId,
-    },
-    data: {
-      content: resp[0]?.formalParagraphText || "",
-      status: "DONE",
-    },
-  });
-  return true;
+  if (!resp[0]?.formalParagraphText) {
+    logger.error("Tingwu textPolishPath %s has no formalParagraphText", taskResponse.output.textPolishPath);
+    throw new Error("Tingwu textPolishPath has no formalParagraphText");
+  }
+  
+  return resp[0].formalParagraphText;
 }
 
 // 创建任务

@@ -211,8 +211,27 @@ router.post(
 
     // 让前端先返回，后台异步处理AI任务
     aiProcessFile(url, record.id)
-      .then((succeeded) => {})
-      .catch((err) => {});
+      .then(async (content) => {
+        await prisma.record.update({
+          where: {
+            id: record.id,
+          },
+          data: {
+            content,
+            status: "DONE",
+          },
+        });
+      })
+      .catch(async (err) => {
+        await prisma.record.update({
+          where: {
+            id: record.id,
+          },
+          data: {
+            status: "PROCESS_FAIL",
+          },
+        });
+      });
 
     return success(res, record);
   })
