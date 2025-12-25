@@ -22,9 +22,10 @@ services:
       dockerfile: Dockerfile
       args:
          DATABASE_URL: ${DATABASE_URL}
+    container_name: csmn-keypoints-backend
     restart: unless-stopped
     ports:
-      - "3001:80"
+      - "3003:80"
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai
@@ -37,6 +38,7 @@ services:
 
   postgres:
     image: postgres
+    container_name: csmn-keypoints-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
