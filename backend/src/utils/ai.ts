@@ -74,8 +74,6 @@ export async function aiProcessFile(
   fileUrl: string,
   recordId: string
 ): Promise<ProcessResult> {
-  fileUrl = "https://pan.cheshuimanong.com/f/Xr3tA/pfdm-hr.wav";
-
   logger.info(
     "Starting AI processing for file: %s, recordId: %s",
     fileUrl,
