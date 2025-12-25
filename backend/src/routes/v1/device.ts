@@ -210,7 +210,7 @@ router.post(
     }
 
     // 让前端先返回，后台异步处理AI任务
-    aiProcessFile(url)
+    aiProcessFile(url, record.id)
       .then((succeeded) => {})
       .catch((err) => {});
 
